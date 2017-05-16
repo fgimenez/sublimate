@@ -1,21 +1,15 @@
 package main
 
-import "log"
+import (
+	"log"
 
-type runner interface {
-	Run() error
-}
-
-type app struct{}
-
-func (a *app) Run() error {
-	return nil
-}
+	"github.com/fgimenez/sublimate/pkg/runner"
+)
 
 func main() {
-	a := &app{}
+	a := &runner.App{}
 
 	if err := a.Run(); err != nil {
-		log.Fatalf("error run app: %v", err)
+		log.Fatalf("error : %v", err)
 	}
 }

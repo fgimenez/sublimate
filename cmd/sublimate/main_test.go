@@ -1,14 +1,22 @@
 package main_test
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/fgimenez/sublimate/pkg/runner"
 )
 
-const sublimateBin = "/tmp/sublimate"
+const (
+	sublimateBin = "/tmp/sublimate"
+)
+
+var fixturesDir = filepath.Join(os.Getenv("GOPATH"), "src/github.com/fgimenez/sublimate/tests/fixtures")
 
 func TestMain(m *testing.M) {
 	// compile command/
@@ -19,4 +27,42 @@ func TestMain(m *testing.M) {
 	}
 	defer os.Remove(sublimateBin)
 	os.Exit(m.Run())
+}
+
+func TestCfgFile(t *testing.T) {
+	t.Run("cfg_not_found_shows_error", func(t *testing.T) {
+		cmd := exec.Command(sublimateBin)
+		cmd.Dir = filepath.Join(fixturesDir, "empty")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("expected error didn't happen")
+		}
+		if !strings.Contains(string(output), "missing sublimate config file "+runner.SublimateCfgFile) {
+			t.Fatalf("unexpected error received %v", err)
+		}
+	})
+	for i := 1; i <= 2; i++ {
+		t.Run("cfg_not_valid_shows_error", func(t *testing.T) {
+			cmd := exec.Command(sublimateBin)
+			cmd.Dir = filepath.Join(fixturesDir, fmt.Sprintf("non-valid-%d", i))
+			output, err := cmd.CombinedOutput()
+			if err == nil {
+				t.Fatalf("expected error didn't happen")
+			}
+			if !strings.Contains(string(output), "non-valid sublimate config file "+runner.SublimateCfgFile) {
+				t.Fatalf("unexpected error received %v", err)
+			}
+		})
+	}
+	t.Run("cfg_missing_summary_shows_error", func(t *testing.T) {
+		cmd := exec.Command(sublimateBin)
+		cmd.Dir = filepath.Join(fixturesDir, "missing-summary")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("expected error didn't happen")
+		}
+		if !strings.Contains(string(output), "sublimate config file missing summary "+runner.SublimateCfgFile) {
+			t.Fatalf("unexpected error received %v", err)
+		}
+	})
 }

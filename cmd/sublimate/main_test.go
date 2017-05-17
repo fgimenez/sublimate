@@ -8,12 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/fgimenez/sublimate/pkg/runner"
 )
 
 const (
-	sublimateBin = "/tmp/sublimate"
+	sublimateBin     = "/tmp/sublimate"
+	sublimateCfgFile = ".sublimate.yaml"
 )
 
 var fixturesDir = filepath.Join(os.Getenv("GOPATH"), "src/github.com/fgimenez/sublimate/tests/fixtures")
@@ -37,7 +36,7 @@ func TestCfgFile(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected error didn't happen")
 		}
-		if !strings.Contains(string(output), "missing sublimate config file "+runner.SublimateCfgFile) {
+		if !strings.Contains(string(output), "missing sublimate config file "+sublimateCfgFile) {
 			t.Fatalf("unexpected error received %v", err)
 		}
 	})
@@ -49,7 +48,7 @@ func TestCfgFile(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error didn't happen")
 			}
-			if !strings.Contains(string(output), "non-valid sublimate config file "+runner.SublimateCfgFile) {
+			if !strings.Contains(string(output), "non-valid sublimate config file "+sublimateCfgFile) {
 				t.Fatalf("unexpected error received %v", err)
 			}
 		})
@@ -61,7 +60,7 @@ func TestCfgFile(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected error didn't happen")
 		}
-		if !strings.Contains(string(output), "sublimate config file missing summary "+runner.SublimateCfgFile) {
+		if !strings.Contains(string(output), "sublimate config file missing summary "+sublimateCfgFile) {
 			t.Fatalf("unexpected error received %v", err)
 		}
 	})

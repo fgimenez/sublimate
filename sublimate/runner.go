@@ -9,16 +9,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const SublimateCfgFile = ".sublimate.yaml"
-
-type Runner interface {
-	Run() error
-}
+const sublimateCfgFile = ".sublimate.yaml"
 
 type App struct{}
 
 type Proyect struct {
-	summary *string
+	Summary  string
+	Contract string
 }
 
 func (a *App) Run() error {
@@ -26,21 +23,24 @@ func (a *App) Run() error {
 	if err != nil {
 		return err
 	}
-	file := filepath.Join(path, SublimateCfgFile)
+	file := filepath.Join(path, sublimateCfgFile)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return errors.New("missing sublimate config file " + SublimateCfgFile)
+		return errors.New("missing sublimate config file " + sublimateCfgFile)
 	}
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
 	}
 	p := &Proyect{}
-	err = yaml.Unmarshal(data, &p)
+	err = yaml.Unmarshal(data, p)
 	if err != nil {
-		return errors.New("non-valid sublimate config file " + SublimateCfgFile)
+		return errors.New("non-valid sublimate config file " + sublimateCfgFile)
 	}
-	if p.summary == nil {
-		return errors.New("sublimate config file missing summary " + SublimateCfgFile)
+	if p.Summary == "" {
+		return errors.New("sublimate config file missing summary " + sublimateCfgFile)
+	}
+	if p.Contract == "" {
+		return errors.New("sublimate config file missing contract " + sublimateCfgFile)
 	}
 	return nil
 }

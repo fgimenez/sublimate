@@ -3,7 +3,11 @@ language: go
 go:
     - tip
 
+before_install:
+    - sudo add-apt-repository ppa:masterminds/glide -y
+    - sudo apt-get update -q
+    - sudo apt-get install glide -y
+
 script:
-    - curl https://glide.sh/get | sh
     - glide install
-    - go test -v ./pkg/... ./cmd/...
+    - go test -v ./sublimate/... ./cmd/...

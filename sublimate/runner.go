@@ -42,5 +42,8 @@ func (a *App) Run() error {
 	if p.Contract == "" {
 		return errors.New("sublimate config file missing contract " + sublimateCfgFile)
 	}
+	if _, err := os.Stat(filepath.Join(path, p.Contract)); os.IsNotExist(err) {
+		return errors.New("contract file not found " + p.Contract)
+	}
 	return nil
 }

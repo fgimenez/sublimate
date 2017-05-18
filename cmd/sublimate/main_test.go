@@ -28,73 +28,38 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func commonTest(t *testing.T, path, errorMessage string) {
+	cmd := exec.Command(sublimateBin)
+	cmd.Dir = filepath.Join(fixturesDir, path)
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected error didn't happen")
+	}
+	if !strings.Contains(string(output), errorMessage) {
+		t.Fatalf("unexpected error received %s", output)
+	}
+
+}
+
 func TestCfgFile(t *testing.T) {
 	t.Run("cfg_not_found_shows_error", func(t *testing.T) {
-		cmd := exec.Command(sublimateBin)
-		cmd.Dir = filepath.Join(fixturesDir, "empty")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			t.Fatalf("expected error didn't happen")
-		}
-		if !strings.Contains(string(output), "missing sublimate config file "+sublimateCfgFile) {
-			t.Fatalf("unexpected error received %s", output)
-		}
+		commonTest(t, "empty", "missing sublimate config file "+sublimateCfgFile)
 	})
 	for i := 1; i <= 2; i++ {
 		t.Run("cfg_not_valid_shows_error", func(t *testing.T) {
-			cmd := exec.Command(sublimateBin)
-			cmd.Dir = filepath.Join(fixturesDir, fmt.Sprintf("non-valid-%d", i))
-			output, err := cmd.CombinedOutput()
-			if err == nil {
-				t.Fatalf("expected error didn't happen")
-			}
-			if !strings.Contains(string(output), "non-valid sublimate config file "+sublimateCfgFile) {
-				t.Fatalf("unexpected error received %s", output)
-			}
+			commonTest(t, fmt.Sprintf("non-valid-%d", i), "non-valid sublimate config file "+sublimateCfgFile)
 		})
 	}
 	t.Run("cfg_missing_summary_shows_error", func(t *testing.T) {
-		cmd := exec.Command(sublimateBin)
-		cmd.Dir = filepath.Join(fixturesDir, "missing-summary")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			t.Fatalf("expected error didn't happen")
-		}
-		if !strings.Contains(string(output), "sublimate config file missing summary "+sublimateCfgFile) {
-			t.Fatalf("unexpected error received %s", output)
-		}
+		commonTest(t, "missing-summary", "sublimate config file missing summary "+sublimateCfgFile)
 	})
 	t.Run("cfg_missing_contract_shows_error", func(t *testing.T) {
-		cmd := exec.Command(sublimateBin)
-		cmd.Dir = filepath.Join(fixturesDir, "missing-contract")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			t.Fatalf("expected error didn't happen")
-		}
-		if !strings.Contains(string(output), "sublimate config file missing contract "+sublimateCfgFile) {
-			t.Fatalf("unexpected error received %s", output)
-		}
+		commonTest(t, "missing-contract", "sublimate config file missing contract "+sublimateCfgFile)
 	})
 	t.Run("cfg_non_file_contract_shows_error", func(t *testing.T) {
-		cmd := exec.Command(sublimateBin)
-		cmd.Dir = filepath.Join(fixturesDir, "non-file-contract")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			t.Fatalf("expected error didn't happen")
-		}
-		if !strings.Contains(string(output), "contract file not found") {
-			t.Fatalf("unexpected error received %s", output)
-		}
+		commonTest(t, "non-file-contract", "contract file not found")
 	})
 	t.Run("cfg_missing_script_shows_error", func(t *testing.T) {
-		cmd := exec.Command(sublimateBin)
-		cmd.Dir = filepath.Join(fixturesDir, "missing-script")
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			t.Fatalf("expected error didn't happen")
-		}
-		if !strings.Contains(string(output), "sublimate config file missing script "+sublimateCfgFile) {
-			t.Fatalf("unexpected error received %s", output)
-		}
+		commonTest(t, "missing-script", "sublimate config file missing script "+sublimateCfgFile)
 	})
 }

@@ -86,4 +86,15 @@ func TestCfgFile(t *testing.T) {
 			t.Fatalf("unexpected error received %s", output)
 		}
 	})
+	t.Run("cfg_missing_script_shows_error", func(t *testing.T) {
+		cmd := exec.Command(sublimateBin)
+		cmd.Dir = filepath.Join(fixturesDir, "missing-script")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("expected error didn't happen")
+		}
+		if !strings.Contains(string(output), "sublimate config file missing script "+sublimateCfgFile) {
+			t.Fatalf("unexpected error received %s", output)
+		}
+	})
 }

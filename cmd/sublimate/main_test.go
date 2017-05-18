@@ -75,5 +75,15 @@ func TestCfgFile(t *testing.T) {
 			t.Fatalf("unexpected error received %s", output)
 		}
 	})
-
+	t.Run("cfg_non_file_contract_shows_error", func(t *testing.T) {
+		cmd := exec.Command(sublimateBin)
+		cmd.Dir = filepath.Join(fixturesDir, "non-file-contract")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("expected error didn't happen")
+		}
+		if !strings.Contains(string(output), "contract file not found") {
+			t.Fatalf("unexpected error received %s", output)
+		}
+	})
 }

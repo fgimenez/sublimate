@@ -13,10 +13,26 @@ const sublimateCfgFile = ".sublimate.yaml"
 
 type App struct{}
 
-type Proyect struct {
+type Project struct {
 	Summary  string
 	Contract string
 	Script   string
+}
+
+func (p *Project) validate(path string) error {
+	if p.Summary == "" {
+		return errors.New("sublimate config file missing summary " + sublimateCfgFile)
+	}
+	if p.Contract == "" {
+		return errors.New("sublimate config file missing contract " + sublimateCfgFile)
+	}
+	if _, err := os.Stat(filepath.Join(path, p.Contract)); os.IsNotExist(err) {
+		return errors.New("contract file not found " + p.Contract)
+	}
+	if p.Script == "" {
+		return errors.New("sublimate config file missing script " + sublimateCfgFile)
+	}
+	return nil
 }
 
 func (a *App) Run() error {
@@ -32,22 +48,13 @@ func (a *App) Run() error {
 	if err != nil {
 		return err
 	}
-	p := &Proyect{}
+	p := &Project{}
 	err = yaml.Unmarshal(data, p)
 	if err != nil {
 		return errors.New("non-valid sublimate config file " + sublimateCfgFile)
 	}
-	if p.Summary == "" {
-		return errors.New("sublimate config file missing summary " + sublimateCfgFile)
-	}
-	if p.Contract == "" {
-		return errors.New("sublimate config file missing contract " + sublimateCfgFile)
-	}
-	if _, err := os.Stat(filepath.Join(path, p.Contract)); os.IsNotExist(err) {
-		return errors.New("contract file not found " + p.Contract)
-	}
-	if p.Script == "" {
-		return errors.New("sublimate config file missing script " + sublimateCfgFile)
+	if err := p.validate(path); err != nil {
+		return err
 	}
 	return nil
 }

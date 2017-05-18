@@ -16,6 +16,7 @@ type App struct{}
 type Proyect struct {
 	Summary  string
 	Contract string
+	Script   string
 }
 
 func (a *App) Run() error {
@@ -44,6 +45,9 @@ func (a *App) Run() error {
 	}
 	if _, err := os.Stat(filepath.Join(path, p.Contract)); os.IsNotExist(err) {
 		return errors.New("contract file not found " + p.Contract)
+	}
+	if p.Script == "" {
+		return errors.New("sublimate config file missing script " + sublimateCfgFile)
 	}
 	return nil
 }

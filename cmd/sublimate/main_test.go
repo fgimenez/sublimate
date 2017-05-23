@@ -63,3 +63,9 @@ func TestCfgFile(t *testing.T) {
 		commonTest(t, "missing-script", "sublimate config file missing script "+sublimateCfgFile)
 	})
 }
+
+func TestContract(t *testing.T) {
+	t.Run("invalid_contract_shows_error", func(t *testing.T) {
+		commonTest(t, "invalid-sol", "compilation error")
+	})
+}

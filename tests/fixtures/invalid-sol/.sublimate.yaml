@@ -1,0 +1,4 @@
+summary: invalid solidity
+contract: contract.sol
+script: |
+    we wont get here...

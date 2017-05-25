@@ -87,9 +87,13 @@ func (g *geth) run(p *Project) error {
 		return err
 	}
 
-	// compile contract
+	if err := compileContract(p.Contract); err != nil {
+		return err
+	}
 
-	// execute script
+	if err := executeScript(p.Script); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -189,4 +193,16 @@ func loadConfig(file string, cfg *gethConfig) error {
 		err = errors.New(file + ", " + err.Error())
 	}
 	return err
+}
+
+func compileContract(contract string) error {
+	_, err := ioutil.ReadFile(contract)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func executeScript(script string) error {
+	return nil
 }

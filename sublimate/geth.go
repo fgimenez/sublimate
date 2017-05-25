@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"unicode"
@@ -24,11 +26,18 @@ import (
 
 const (
 	genesisContent = `{
-    "nonce": "0x0000000000000042",     "timestamp": "0x0",
-    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "extraData": "0x0",     "gasLimit": "0x8000000",     "difficulty": "0x400",
-    "mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "coinbase": "0x3333333333333333333333333333333333333333",     "alloc": {     }
+    "config": {
+        "chainId": 15,
+        "homesteadBlock": 0,
+        "eip155Block": 0,
+        "eip158Block": 0
+    },
+    "difficulty": "200000000",
+    "gasLimit": "2100000",
+    "alloc": {
+        "7df9a875a174b3bc565e6424a0050ebc1b2d1d82": { "balance": "300000" },
+        "f41c74c9ae680c1aa78f42e5647a62f353b7bdde": { "balance": "400000" }
+    }
 }`
 )
 
@@ -39,6 +48,7 @@ var (
 		Name:  "config",
 		Usage: "TOML configuration file",
 	}
+	datadir string
 )
 
 type geth struct{}
@@ -66,6 +76,13 @@ var tomlSettings = toml.Config{
 }
 
 func (g *geth) run(p *Project) error {
+	var err error
+	datadir, err = ioutil.TempDir("", "sublimate-datadir")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(datadir)
+
 	if err := initTestnet(p); err != nil {
 		return err
 	}
@@ -85,7 +102,8 @@ func initTestnet(p *Project) error {
 	}
 
 	// Open an initialise both full and light databases
-	ctx := cli.NewContext(cli.NewApp(), nil, nil)
+	f := flag.NewFlagSet("f1", flag.ContinueOnError)
+	ctx := cli.NewContext(cli.NewApp(), f, nil)
 
 	stack, err := makeFullNode(ctx)
 	if err != nil {
@@ -94,10 +112,10 @@ func initTestnet(p *Project) error {
 	for _, name := range []string{"chaindata", "lightchaindata"} {
 		chaindb, err := stack.OpenDatabase(name, 0, 0)
 		if err != nil {
-			utils.Fatalf("Failed to open database: %v", err)
+			return errors.New("Failed to open database: " + err.Error())
 		}
 		if _, _, err = core.SetupGenesisBlock(chaindb, genesis); err != nil {
-			utils.Fatalf("Failed to write genesis block: %v", err)
+			return errors.New("Failed to write genesis block: " + err.Error())
 		}
 	}
 
@@ -124,7 +142,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, error) {
 		copy(config.Commit[:], commit)
 		return release.NewReleaseService(ctx, config)
 	}); err != nil {
-		utils.Fatalf("Failed to register the Geth release oracle service: %v", err)
+		return nil, errors.New("Failed to register the Geth release oracle service: " + err.Error())
 	}
 	return stack, nil
 }
@@ -136,15 +154,8 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig, error) {
 		Node: defaultNodeConfig(),
 	}
 
-	// Load config file.
-	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
-		if err := loadConfig(file, &cfg); err != nil {
-			return nil, cfg, err
-		}
-	}
+	cfg.Eth.NetworkId = 15
 
-	// Apply flags.
-	utils.SetNodeConfig(ctx, &cfg.Node)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		return nil, cfg, errors.New("Failed to create the protocol stack: " + err.Error())
@@ -161,6 +172,7 @@ func defaultNodeConfig() node.Config {
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
 	cfg.IPCPath = "geth.ipc"
+	cfg.DataDir = datadir
 	return cfg
 }
 

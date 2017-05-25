@@ -1,2 +1,3 @@
 package: github.com/fgimenez/sublimate
+flatten: true
 import: []

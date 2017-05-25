@@ -9,5 +9,5 @@ before_install:
     - sudo apt-get install glide -y
 
 script:
-    - glide install
+    - glide install --strip-vendor
     - go test -v ./sublimate/... ./cmd/...

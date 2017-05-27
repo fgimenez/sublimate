@@ -1,13 +1,17 @@
 language: go
 
 go:
-    - tip
+    - 1.8
 
 before_install:
-    - sudo add-apt-repository ppa:masterminds/glide -y
-    - sudo apt-get update -q
-    - sudo apt-get install glide -y
+    - curl -L https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-linux-amd64.tar.gz -o glide.tar.gz
+    - tar xfv glide.tar.gz
+
+# override default install
+install: true
 
 script:
-    - glide install --strip-vendor
+    - ./linux-amd64/glide install --strip-vendor
+    - go install ./vendor/github.com/karalabe/hid/...
+    - go install ./vendor/github.com/ethereum/go-ethereum/crypto/secp256k1/...
     - go test -v ./sublimate/... ./cmd/...

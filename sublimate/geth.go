@@ -9,16 +9,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"reflect"
+	"strings"
 	"unicode"
 
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/contracts/release"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
@@ -105,10 +112,9 @@ func initTestnet(p *Project) error {
 		return errors.New("invalid genesis file: " + err.Error())
 	}
 
-	// Open an initialise both full and light databases
+	// Open and initialise both full and light databases
 	f := flag.NewFlagSet("f1", flag.ContinueOnError)
 	ctx := cli.NewContext(cli.NewApp(), f, nil)
-
 	stack, err := makeFullNode(ctx)
 	if err != nil {
 		return err
@@ -200,9 +206,209 @@ func compileContract(contract string) error {
 	if err != nil {
 		return err
 	}
-	return nil
+
+	script := ``
+
+	return executeScript(script)
 }
 
 func executeScript(script string) error {
+	// create script file
+
+	// Create and start the node based on the CLI flags
+	f := flag.NewFlagSet("f1", flag.ContinueOnError)
+	ctx := cli.NewContext(cli.NewApp(), f, nil)
+
+	node, err := makeFullNode(ctx)
+	if err != nil {
+		return err
+	}
+	startNode(ctx, node)
+	defer node.Stop()
+
+	// Attach to the newly started node and start the JavaScript console
+	client, err := node.Attach()
+	if err != nil {
+		return errors.New("Failed to attach to the inproc geth: " + err.Error())
+	}
+	config := console.Config{
+		DataDir: datadir,
+		DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
+		Client:  client,
+		Preload: utils.MakeConsolePreloads(ctx),
+	}
+
+	console, err := console.New(config)
+	if err != nil {
+		return errors.New("Failed to start the JavaScript console: " + err.Error())
+	}
+	defer console.Stop(false)
+
+	// Evaluate each of the specified JavaScript files
+	scriptfile, err := ioutil.TempFile("", "eth-script")
+	if err != nil {
+		return err
+	}
+
+	defer os.Remove(scriptfile.Name())
+
+	if _, err := scriptfile.Write([]byte(script)); err != nil {
+		return err
+	}
+	if err := scriptfile.Close(); err != nil {
+		return err
+	}
+	if err = console.Execute(scriptfile.Name()); err != nil {
+		return errors.New("Failed to execute: " + err.Error())
+	}
+	// Wait for pending callbacks, but stop for Ctrl-C.
+	abort := make(chan os.Signal, 1)
+	signal.Notify(abort, os.Interrupt)
+
+	go func() {
+		<-abort
+		os.Exit(0)
+	}()
+	console.Stop(true)
+
 	return nil
+}
+
+// startNode boots up the system node and all registered protocols, after which
+// it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
+// miner.
+func startNode(ctx *cli.Context, stack *node.Node) {
+	// Start up the node itself
+	utils.StartNode(stack)
+
+	// Unlock any account specifically requested
+	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+
+	passwords := utils.MakePasswordList(ctx)
+	unlocks := strings.Split(ctx.GlobalString(utils.UnlockedAccountFlag.Name), ",")
+	for i, account := range unlocks {
+		if trimmed := strings.TrimSpace(account); trimmed != "" {
+			unlockAccount(ctx, ks, trimmed, i, passwords)
+		}
+	}
+	// Register wallet event handlers to open and auto-derive wallets
+	events := make(chan accounts.WalletEvent, 16)
+	stack.AccountManager().Subscribe(events)
+
+	go func() {
+		// Create an chain state reader for self-derivation
+		rpcClient, err := stack.Attach()
+		if err != nil {
+			utils.Fatalf("Failed to attach to self: %v", err)
+		}
+		stateReader := ethclient.NewClient(rpcClient)
+
+		// Open and self derive any wallets already attached
+		for _, wallet := range stack.AccountManager().Wallets() {
+			if err := wallet.Open(""); err != nil {
+				log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
+			} else {
+				wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+			}
+		}
+		// Listen for wallet event till termination
+		for event := range events {
+			if event.Arrive {
+				if err := event.Wallet.Open(""); err != nil {
+					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+				} else {
+					log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", event.Wallet.Status())
+					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+				}
+			} else {
+				log.Info("Old wallet dropped", "url", event.Wallet.URL())
+				event.Wallet.Close()
+			}
+		}
+	}()
+}
+
+// tries unlocking the specified account a few times.
+func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int, passwords []string) (accounts.Account, string) {
+	account, err := utils.MakeAddress(ks, address)
+	if err != nil {
+		utils.Fatalf("Could not list accounts: %v", err)
+	}
+	for trials := 0; trials < 3; trials++ {
+		prompt := fmt.Sprintf("Unlocking account %s | Attempt %d/%d", address, trials+1, 3)
+		password := getPassPhrase(prompt, false, i, passwords)
+		err = ks.Unlock(account, password)
+		if err == nil {
+			log.Info("Unlocked account", "address", account.Address.Hex())
+			return account, password
+		}
+		if err, ok := err.(*keystore.AmbiguousAddrError); ok {
+			log.Info("Unlocked account", "address", account.Address.Hex())
+			return ambiguousAddrRecovery(ks, err, password), password
+		}
+		if err != keystore.ErrDecrypt {
+			// No need to prompt again if the error is not decryption-related.
+			break
+		}
+	}
+	// All trials expended to unlock account, bail out
+	utils.Fatalf("Failed to unlock account %s (%v)", address, err)
+
+	return accounts.Account{}, ""
+}
+
+// getPassPhrase retrieves the passwor associated with an account, either fetched
+// from a list of preloaded passphrases, or requested interactively from the user.
+func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) string {
+	// If a list of passwords was supplied, retrieve from them
+	if len(passwords) > 0 {
+		if i < len(passwords) {
+			return passwords[i]
+		}
+		return passwords[len(passwords)-1]
+	}
+	// Otherwise prompt the user for the password
+	if prompt != "" {
+		fmt.Println(prompt)
+	}
+	password, err := console.Stdin.PromptPassword("Passphrase: ")
+	if err != nil {
+		utils.Fatalf("Failed to read passphrase: %v", err)
+	}
+	if confirmation {
+		confirm, err := console.Stdin.PromptPassword("Repeat passphrase: ")
+		if err != nil {
+			utils.Fatalf("Failed to read passphrase confirmation: %v", err)
+		}
+		if password != confirm {
+			utils.Fatalf("Passphrases do not match")
+		}
+	}
+	return password
+}
+
+func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrError, auth string) accounts.Account {
+	fmt.Printf("Multiple key files exist for address %x:\n", err.Addr)
+	for _, a := range err.Matches {
+		fmt.Println("  ", a.URL)
+	}
+	fmt.Println("Testing your passphrase against all of them...")
+	var match *accounts.Account
+	for _, a := range err.Matches {
+		if err := ks.Unlock(a, auth); err == nil {
+			match = &a
+			break
+		}
+	}
+	if match == nil {
+		utils.Fatalf("None of the listed files could be unlocked.")
+	}
+	fmt.Printf("Your passphrase unlocked %s\n", match.URL)
+	fmt.Println("In order to avoid this warning, you need to remove the following duplicate key files:")
+	for _, a := range err.Matches {
+		if a != *match {
+			fmt.Println("  ", a.URL)
+		}
+	}
+	return *match
 }

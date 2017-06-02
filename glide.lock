@@ -1,5 +1,5 @@
 hash: 22d6e70eb65f2c8f1c7ae7ae930dc334e98f1f853e7ec2fd66aaa071abb29225
-updated: 2017-05-22T19:08:10.568565609+02:00
+updated: 2017-05-29T18:12:47.483821287+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: 44b539e174b9077192dc0f6f3ecbe6d2319102ac
@@ -29,6 +29,7 @@ imports:
   - consensus/clique
   - consensus/ethash
   - consensus/misc
+  - console
   - contracts/release
   - core
   - core/state
@@ -44,11 +45,15 @@ imports:
   - eth/fetcher
   - eth/filters
   - eth/gasprice
+  - ethclient
   - ethdb
   - ethstats
   - event
   - internal/debug
   - internal/ethapi
+  - internal/jsre
+  - internal/jsre/deps
+  - internal/web3ext
   - les
   - les/flowcontrol
   - light
@@ -67,6 +72,8 @@ imports:
   - rpc
   - trie
   - whisper/whisperv5
+- name: github.com/fatih/color
+  version: 62e9147c64a1ed519147b62a56a14e83e2be02c1
 - name: github.com/go-stack/stack
   version: 7a2f19628aabfe68f0766b59e74d6315f8347d22
 - name: github.com/golang/snappy
@@ -100,6 +107,8 @@ imports:
   - ast
 - name: github.com/pborman/uuid
   version: 1b00554d822231195d1babd97ff4a781231955c9
+- name: github.com/peterh/liner
+  version: 88609521dc4b6c858fd4c98b628147da928ce4ac
 - name: github.com/rcrowley/go-metrics
   version: 1f30fe9094a513ce4c700b9a54458bbb0c96996c
   subpackages:

@@ -64,8 +64,10 @@ func TestCfgFile(t *testing.T) {
 	})
 }
 
+/*
 func TestContract(t *testing.T) {
 	t.Run("invalid_contract_shows_error", func(t *testing.T) {
 		commonTest(t, "invalid-sol", "compilation error")
 	})
 }
+*/

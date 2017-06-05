@@ -1,6 +1,14 @@
 [![Build Status][travis-image]][travis-url]
 [![Go Report Card][goreportcard-image]][goreportcard-url]
 
+
+= Sublimate
+
+= Project configuration
+
+= Test execution
+
+
 [travis-image]: https://travis-ci.org/fgimenez/sublimate.svg?branch=master
 [travis-url]: https://travis-ci.org/fgimenez/sublimate
 
